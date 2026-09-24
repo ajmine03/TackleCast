@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag (e.g. v2.2.0)"
+        required: false
+        default: "v2.2.0"
 
 permissions:
   contents: write
@@ -35,7 +40,6 @@ jobs:
         shell: powershell
         run: |
           .\scripts\package_rust_release.ps1 -PackageName "TackleCast-Windows-x86_64" -Zip
-          Move-Item -Path "dist\TackleCast-Windows-x86_64.zip" -Destination "dist\TackleCast-Windows-x86_64.zip" -Force
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
@@ -101,6 +105,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
           files: release-assets/*
           generate_release_notes: true
           draft: false
