@@ -25,7 +25,7 @@ jobs:
         shell: powershell
         run: |
           $ffmpegZip = "$env:TEMP\ffmpeg.zip"
-          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-06-30-13-55/ffmpeg-n7.1.1-latest-win64-gpl-shared-7.1.zip" -OutFile $ffmpegZip
+          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip" -OutFile $ffmpegZip
           Expand-Archive -Path $ffmpegZip -DestinationPath "C:\ffmpeg-extract"
           $extractedDir = Get-ChildItem "C:\ffmpeg-extract" | Where-Object { $_.PSIsContainer } | Select-Object -First 1
           Move-Item -Path $extractedDir.FullName -Destination "C:\ffmpeg"

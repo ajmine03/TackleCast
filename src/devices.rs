@@ -1,4 +1,5 @@
 use cpal::traits::{DeviceTrait, HostTrait};
+#[cfg(target_os = "windows")]
 use tracing::warn;
 
 #[cfg(target_os = "windows")]

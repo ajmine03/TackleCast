@@ -1005,19 +1005,13 @@ fn find_dshow_format() -> Option<ffmpeg::Format> {
 
 #[cfg(target_os = "linux")]
 fn find_v4l2_format() -> Option<ffmpeg::Format> {
-    device::input::video()
-        .find(|format| match format {
-            ffmpeg::Format::Input(input) => {
-                let name = input.name();
-                name == "video4linux2" || name == "v4l2"
-            }
-            ffmpeg::Format::Output(_) => false,
-        })
-        .or_else(|| {
-            format::input(&"video4linux2")
-                .or_else(|| format::input(&"v4l2"))
-                .map(ffmpeg::Format::Input)
-        })
+    device::input::video().find(|format| match format {
+        ffmpeg::Format::Input(input) => {
+            let name = input.name();
+            name == "video4linux2" || name == "v4l2"
+        }
+        ffmpeg::Format::Output(_) => false,
+    })
 }
 
 fn find_input_format() -> Result<(ffmpeg::Format, String), String> {
@@ -1152,6 +1146,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(irrefutable_let_patterns)]
     fn generates_expected_plane_sizes_for_nv12() {
         let frame = generate_test_frame(1280, 720, 0, PixelFormat::Nv12);
         let CaptureFrame::Cpu {
@@ -1169,6 +1164,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(irrefutable_let_patterns)]
     fn generates_expected_plane_sizes_for_yuvj422p() {
         let frame = generate_test_frame(1280, 720, 0, PixelFormat::Yuvj422p);
         let CaptureFrame::Cpu {
