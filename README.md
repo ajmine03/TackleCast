@@ -38,6 +38,21 @@ Built specifically for console-to-laptop setups (such as **PS4 / PS5 / Nintendo 
 
 ---
 
+## Releases & Downloads
+
+Pre-compiled, ready-to-use binaries are automatically built and published on the [GitHub Releases](https://github.com/ajmine03/TackleCast/releases) page:
+
+- **Windows 10/11 (`.exe` bundle)**:
+  1. Download `TackleCast-Windows-x86_64.zip` from Releases.
+  2. Extract the archive to any folder.
+  3. Double-click `TackleCast.exe` (all required FFmpeg runtime DLLs and icons are bundled).
+- **Linux (`.sh` launcher)**:
+  1. Download `TackleCast-Linux-x86_64.tar.gz` from Releases.
+  2. Extract: `tar -xzvf TackleCast-Linux-x86_64.tar.gz && cd TackleCast-Linux-x86_64`
+  3. Run: `./run.sh` (handles device node permissions and launches the binary).
+
+---
+
 ## Hardware Setup Guide (PS4 → Capture Card → Laptop)
 
 ### 1. Physical Connections
@@ -200,6 +215,35 @@ cargo build
 
 # Optimized release binary
 cargo build --release
+```
+
+---
+
+## Pushing to Your GitHub Fork & Publishing Releases
+
+To push your work to your GitHub repository ([`ajmine03/TackleCast`](https://github.com/ajmine03/TackleCast)):
+
+### 1. Push Code to `main`
+```bash
+# Push with personal access token or SSH
+git push origin main
+```
+*Note: If prompted for credentials, use your GitHub username and a Personal Access Token (PAT) with `repo` scope.*
+
+If you use SSH:
+```bash
+git remote set-url origin git@github.com:ajmine03/TackleCast.git
+git push origin main
+```
+
+### 2. Publish an Automated GitHub Release
+When you are ready to cut a new release, tag your commit and push the tag. The GitHub Actions release workflow will automatically build both Windows `.exe` (`.zip`) and Linux `.tar.gz` bundles and attach them to a new GitHub Release:
+```bash
+# Create release tag (e.g. v2.2.0)
+git tag v2.2.0
+
+# Push tag to trigger automated build & release
+git push origin v2.2.0
 ```
 
 ---

@@ -25,6 +25,9 @@ $releaseExe = Join-Path $root "target\release\tacklecast.exe"
 $settingsSrc = Join-Path $root "tacklecast_settings.json"
 $iconSrc = Join-Path $root "assets\icon.ico"
 $ffmpegDir = $env:FFMPEG_DIR
+if ([string]::IsNullOrWhiteSpace($ffmpegDir) -and (Test-Path "C:\ffmpeg")) {
+    $ffmpegDir = "C:\ffmpeg"
+}
 
 if ([string]::IsNullOrWhiteSpace($ffmpegDir)) {
     throw "FFMPEG_DIR is not set. Set it to your FFmpeg root (contains bin/, lib/, include/)."
@@ -35,8 +38,12 @@ Ensure-Exists -Path $ffmpegBin -Message "FFMPEG_DIR\bin not found: $ffmpegBin"
 
 Push-Location $root
 try {
-    Write-Host "Building release binary..."
-    cargo build --release
+    if (-not (Test-Path -LiteralPath $releaseExe)) {
+        Write-Host "Building release binary..."
+        cargo build --release
+    } else {
+        Write-Host "Using release binary at $releaseExe"
+    }
 
     Ensure-Exists -Path $releaseExe -Message "Release executable missing: $releaseExe"
     Ensure-Exists -Path $iconSrc -Message "Icon missing: $iconSrc"
