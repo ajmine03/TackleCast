@@ -4,89 +4,206 @@
   <img src="assets/icon.png" alt="TackleCast" width="128">
 </p>
 
-**A lightweight, GPU-accelerated capture card viewer for Windows.** No recording, no bloat, just your game on your screen.
+**A lightweight, GPU-accelerated low-latency capture card viewer for Windows and Linux.** No recording bloat, no complex OBS configuration—just your console gaming on your laptop screen with synchronized high-fidelity audio.
 
-Built for capture cards like the Genki ShadowCast, Elgato, AVerMedia, and other UVC-compliant devices. Written in Rust with a zero-copy GPU pipeline for minimal latency.
+Built specifically for console-to-laptop setups (such as **PS4 / PS5 / Nintendo Switch / Xbox → HDMI USB Capture Card → Laptop**) using devices like Genki ShadowCast, Elgato Cam Link, AVerMedia, and generic UVC/UAC USB capture cards. Written in Rust for minimal latency, zero-copy GPU video rendering, and a robust lockless audio pipeline with automatic sample rate and channel conversion.
 
-## Features
+---
 
-- **GPU-accelerated rendering** via wgpu with a custom YUV-to-RGB shader
-- **NVIDIA GPU MJPEG decode** via nvJPEG/CUDA (automatic fallback to software decode)
-- **Zero-copy GPU pipeline** - decoded frames never leave the GPU (CUDA to DX12 to wgpu)
-- **Low-latency audio passthrough** via WASAPI
-- **Resolution options** - 720p, 1080p, 1440p, 4K
-- **FPS modes** - 30, 60, 120, or Custom (30-240)
-- **Live FPS counter** with real measured framerate
-- **Auto-detect capture cards** via DirectShow
-- **Dark theme UI** with pause-style settings menu (egui)
-- **Fullscreen support** (F11 or toggle in settings)
-- **Zero recording overhead** - purely a viewer
-- **Settings persistence** - remembers your device selections
-- **Diagnostic logging** - rotating log files for troubleshooting
+## Key Features
 
-## Quick Start
+- **Robust Audio Passthrough**:
+  - Independent capture and playback stream management (never fails due to mismatched hardware rates).
+  - High-precision 4-point Catmull-Rom cubic Hermite resampling (seamlessly matches PS4 48 kHz PCM, capture cards at 44.1/48/96 kHz, and host audio hardware).
+  - Dynamic channel adaptation (mono capture card → stereo laptop speakers/headphones, stereo pass-through, or multi-channel downmixing).
+  - Lockless single-producer single-consumer (SPSC) ring buffer minimizing latency without blocking the audio thread.
+  - Full volume control (0–100%) and instant mute toggle in UI.
+  - Native Windows WASAPI and Linux PipeWire / ALSA backends via `cpal`.
+  - Comprehensive startup diagnostics and rate-limited underrun/overrun reporting.
+- **GPU-Accelerated Video Pipeline**:
+  - DirectShow (Windows) and V4L2 (Linux) device capture via FFmpeg.
+  - Custom YUV-to-RGB WGSL shader rendering via `wgpu`.
+  - Zero-copy NVIDIA GPU MJPEG decoding via nvJPEG/CUDA (on supported Windows configurations).
+  - Automatic fallback to multi-threaded CPU decode for maximum hardware compatibility.
+- **Console-Optimized Display**:
+  - Resolution modes: 720p, 1080p, 1440p, 4K with aspect-ratio-preserving letterboxing.
+  - Flexible FPS targets: 30, 60, 120, or Custom (30–240 FPS).
+  - Nearest Neighbor and Bilinear texture filtering.
+  - Fullscreen borderless mode (press `F11`).
+  - Screen sleep suppression during active gameplay.
+- **Clean, Minimal UI**:
+  - Compact in-game settings overlay (press `Escape`).
+  - Real-time Audio & Video status indicators (e.g. `Audio: Connected`, `Audio: No Input`, `FPS: 60.0`).
+  - Persistent JSON configuration across restarts.
 
-1. Download the latest release zip from [Releases](../../releases)
-2. Extract anywhere
-3. Double-click `TackleCast.exe`
+---
 
-No additional software required.
+## Hardware Setup Guide (PS4 → Capture Card → Laptop)
 
-## Building from Source
-
-See [BUILD.md](BUILD.md) for full build instructions.
-
-```bash
-cargo build --release
+### 1. Physical Connections
+```text
+  [ PlayStation 4 / 5 ]
+            │  HDMI Out
+            ▼
+┌────────────────────────┐
+│ HDMI USB Capture Card  │
+└────────────────────────┘
+            │  USB 3.0 / USB-C
+            ▼
+     [ Laptop / PC ]  ───► [ Speakers / Headphones ]
 ```
+
+1. Connect an HDMI cable from the **PS4 HDMI OUT** port into the **Capture Card HDMI IN** port.
+2. Plug the USB capture card into a high-speed **USB 3.0 / 3.1 / USB-C port** on your laptop (avoid unpowered USB hubs to prevent frame drops or audio stutter).
+3. Connect your headphones or use your laptop's built-in speakers.
+
+### 2. PS4 Audio & Video Settings
+For optimal compatibility:
+- **Audio Output Settings**:
+  - Navigate to PS4 **Settings → Sound and Screen → Audio Output Settings → Primary Output Port**: Select **HDMI OUT**.
+  - **Audio Format (Priority)**: Select **Linear PCM** (2-channel stereo 48 kHz). *Avoid Dolby Digital or DTS bitstream formats, as USB capture cards only accept uncompressed PCM.*
+- **HDCP Settings**:
+  - Navigate to PS4 **Settings → System**: Ensure **Enable HDCP** is **UNCHECKED**. *(Capture cards cannot display video or audio if HDCP encryption is active).*
+
+---
+
+## Platform Setup & Running
+
+### Windows (10 / 11)
+
+1. **Launch TackleCast**:
+   - Run `TackleCast.exe` (or `cargo run --release`).
+2. **Configure Devices**:
+   - Press **Escape** to toggle the settings menu.
+   - **Video Device**: Select your capture card (e.g. `USB Video`, `ShadowCast`, `Cam Link 4K`).
+   - **Audio Input**: Select your capture card's audio endpoint (e.g. `Digital Audio Interface (USB Digital Audio)`, `Capture Card Audio`).
+   - **Audio Output**: Select your laptop's playback device (e.g. `Speakers (Realtek Audio)`, `Headphones`).
+   - **Volume**: Adjust slider (0–100%) or uncheck **Mute**.
+   - Check the **Audio Status** label at the bottom of the menu; it will show `Connected` in green once streams are running.
+3. **Play**:
+   - Press **Escape** to hide the menu.
+   - Press **F11** for immersive borderless fullscreen.
+
+### Linux (Ubuntu, Debian, Fedora, Arch, etc.)
+
+TackleCast natively supports modern Linux desktop environments with PipeWire, PulseAudio, and ALSA, as well as V4L2 for video capture.
+
+1. **Verify Device Recognition**:
+   ```bash
+   # Check video capture device node
+   v4l2-ctl --list-devices
+   # Check audio input devices
+   wpctl status   # or: arecord -l
+   ```
+2. **Run TackleCast**:
+   ```bash
+   cargo run --release
+   ```
+3. **Configure Devices**:
+   - Press **Escape** to open the menu.
+   - Select your `/dev/video*` capture device under **Video Device**.
+   - Select your capture card under **Audio Input** and your default sink/headphones under **Audio Output**.
+
+---
+
+## Troubleshooting: Video Works but Audio Doesn't
+
+If video capture is displaying smoothly but no sound comes out of your speakers or headphones, follow these diagnostic steps:
+
+### 1. Verify TackleCast Audio Status
+Press **Escape** to open the settings menu and look at the **Audio Status**:
+- **`Audio: Connected`**: Streams are open and active. Check your laptop master volume, output device selection, and verify TackleCast is not muted.
+- **`Audio: No Input Device`**: TackleCast could not open the capture card's microphone endpoint. Verify the correct input device is selected from the dropdown.
+- **`Audio: No Output Device`**: Your selected playback device is disconnected or unavailable. Choose your default laptop speakers or headphones.
+- **`Audio: Error (...)`**: Format negotiation failed or the device was unplugged. Check the detailed message.
+
+### 2. Check PS4 Audio Settings
+- Go to PS4 **Settings → Sound and Screen → Audio Output Settings → Audio Format (Priority)**.
+- Ensure **Linear PCM** is selected. Encoded streams (Bitstream Dolby or DTS) cannot be decoded by basic UVC/UAC capture dongles and will output pure silence.
+
+### 3. Windows Sound & Privacy Settings
+- **Microphone Privacy Permission**: Windows treats capture card audio inputs as microphones.
+  - Open Windows **Settings → Privacy & Security → Microphone**.
+  - Ensure **Microphone access** and **Let desktop apps access your microphone** are turned **ON**.
+- **Windows Sound Control Panel**:
+  - Press `Win + R`, type `mmsys.cpl`, and hit Enter.
+  - Go to the **Recording** tab, find your capture card (often labeled *Digital Audio Interface* or *USB Audio*), right-click → **Properties → Advanced**.
+  - Test setting default format to **2 channel, 16 bit, 48000 Hz (DVD Quality)**.
+  - Ensure the device is not muted or disabled.
+
+### 4. Linux PipeWire / PulseAudio Settings
+- Open `pavucontrol` (PulseAudio Volume Control).
+- In the **Configuration** tab, ensure your capture card profile is set to **Pro Audio** or **Digital Stereo (IEC958) Input**.
+- In the **Recording** tab, verify `tacklecast` is capturing from the correct source and that the volume meter is moving.
+
+### 5. Inspect Application Logs
+TackleCast writes detailed rotating diagnostic logs to `logs/tacklecast_*.log`.
+At startup, it logs every detected video, audio input, and audio output device, along with sample rates, formats, and channels. If an audio error or buffer underrun occurs, it will be logged with a timestamp:
+```text
+=== Audio & Video Diagnostics at Startup ===
+detected video capture devices (1):
+  [0] USB Video
+detected audio input devices (2):
+  [0] Digital Audio Interface (USB Digital Audio)
+  [1] Microphone Array (Realtek Audio)
+detected audio output devices (2):
+  [0] Speakers (Realtek Audio)
+  [1] Headphones (Realtek Audio)
+Audio input stream config: sample_rate=48000Hz, channels=2, format=I16
+Audio output stream config: sample_rate=48000Hz, channels=2, format=F32
+Audio input started successfully
+Audio output started successfully
+```
+
+---
 
 ## Controls
 
-| Action | Key |
+| Action | Key / Gesture |
 |---|---|
-| Open/close settings | Escape |
-| Fullscreen | F11 |
+| Open / Close Settings Menu | `Escape` |
+| Toggle Fullscreen | `F11` |
+| Show Cursor | Move mouse (auto-hides after 3 seconds of inactivity) |
 
-## How It Works
-
-TackleCast has a three-tier decode pipeline that automatically selects the best path for your hardware:
-
-| Tier | Path | When |
-|---|---|---|
-| Zero-copy | nvJPEG decode to shared DX12 buffer to wgpu | NVIDIA GPU with CUDA support |
-| GPU decode + readback | nvJPEG decode to host memory to wgpu | CUDA available, DX12 interop unavailable |
-| Software decode | ffmpeg CPU decode to wgpu | No CUDA/nvJPEG available |
-
-At 60 FPS and below, most capture cards output raw NV12 with zero decode overhead. Above 60 FPS, MJPEG is used and benefits from GPU decode.
+---
 
 ## Architecture
 
-```
+```text
 src/
-  main.rs          - winit event loop, app state, settings
-  capture.rs       - DirectShow capture via ffmpeg-next, format/resolution fallback
-  gpu_decode.rs    - NVIDIA nvJPEG GPU MJPEG decode (feature-gated: gpu-decode)
-  dx12_interop.rs  - DX12 shared buffers for CUDA/wgpu zero-copy (feature-gated: gpu-decode)
-  render.rs        - wgpu DX12 renderer, YUV->RGB WGSL shader
-  audio.rs         - WASAPI audio passthrough via cpal
-  ui.rs            - egui overlay and settings menu
-  devices.rs       - DirectShow video + WASAPI audio device enumeration
-  settings.rs      - JSON settings load/save
-  logger.rs        - Rotating file logger via tracing
+├── main.rs          # Event loop (winit), application state, hardware diagnostics
+├── capture.rs       # Platform video capture (DirectShow on Windows, V4L2 on Linux via FFmpeg)
+├── render.rs        # wgpu rendering pipeline, WGSL color conversion shaders, letterboxing
+├── devices.rs       # Cross-platform device enumeration (DirectShow/V4L2, WASAPI/PipeWire/ALSA)
+├── settings.rs      # JSON configuration persistence with backward-compatible defaults
+├── ui.rs            # egui in-game menu, audio status indicators, volume/mute controls
+├── logger.rs        # Rotating daily file logging via tracing
+├── audio/
+│   ├── mod.rs       # AudioPassthrough coordinator with independent in/out streams
+│   ├── common.rs    # SPSC lockless ring buffer, Catmull-Rom cubic resampler, channel conversion
+│   ├── windows.rs   # Windows WASAPI format negotiation and device resolution
+│   └── linux.rs     # Linux PipeWire / ALSA format negotiation and device resolution
+├── dx12_interop.rs  # Windows DX12 shared buffers for CUDA zero-copy (optional feature)
+└── gpu_decode.rs    # NVIDIA nvJPEG hardware MJPEG decoding (optional feature)
 ```
 
-## Known Limitations
+---
 
-- **GPU decode is NVIDIA-only** (AMD AMF and Intel Quick Sync planned for a future release). Non-NVIDIA GPUs fall back to software decode automatically.
-- **Windows only** (DirectShow capture, WASAPI audio, DX12 rendering).
-- **Some capture cards may throttle at high framerates.** Smaller USB passthrough dongles (e.g. Genki ShadowCast 2 Pro) can thermally throttle their internal MJPEG encoder at sustained 1440p@120fps, causing frame delivery to drop to ~60fps. This is a hardware limitation, not a software issue. Devices with better thermal design (e.g. ShadowCast 3) are unaffected.
-- Laptop GPUs may thermal throttle at sustained 4K@60fps or 1440p@120fps (a cooling pad helps).
-- Webcams may partially work but are not officially supported.
+## Building from Source
 
-## Acknowledgments
+Detailed build and dependency instructions for Windows and Linux can be found in [BUILD.md](BUILD.md).
 
-- **[@NeverForgetful](https://www.youtube.com/@NeverForgetful)** - Testing and QA
+```bash
+# Debug build & test suite
+cargo test
+cargo build
+
+# Optimized release binary
+cargo build --release
+```
+
+---
 
 ## License
 
-MIT
+MIT License. See [LICENSE](LICENSE) for details.

@@ -1,77 +1,128 @@
-# TackleCast Build and Packaging (Windows)
+# Building TackleCast
 
-## Prerequisites
+TackleCast supports native builds on both **Windows 10/11** and **Linux** (Debian, Ubuntu, Fedora, Arch, etc.).
 
-1. **Rust toolchain** (`rustup`, `cargo`)
-2. **Visual Studio C++ Build Tools** (MSVC toolchain)
-3. **FFmpeg shared + dev build** (must include `bin/`, `lib/`, `include/`)
-4. **LLVM/libclang** (required by `ffmpeg-sys-next` bindgen)
-5. **CUDA Toolkit 13.2** (optional, only needed for GPU decode development)
+---
 
-### Environment Setup
+## 1. Windows Build Instructions
 
+### Prerequisites
+1. **Rust Toolchain**: Install via [rustup.rs](https://rustup.rs).
+2. **C/C++ Build Tools**: Visual Studio C++ Build Tools (MSVC) or MinGW-w64 (`x86_64-pc-windows-gnu`).
+3. **FFmpeg 7.x Development Libraries**: Shared + Dev build containing `include/`, `lib/`, and `bin/`.
+   - Download from BtbN FFmpeg Builds (e.g. `ffmpeg-n7.1.1-latest-win64-gpl-shared-7.1.zip`).
+4. **LLVM / libclang**: Required for `bindgen` during `ffmpeg-sys-next` compilation.
+   - Install via Winget: `winget install LLVM.LLVM` or download from GitHub releases.
+5. *(Optional)* **CUDA Toolkit 13+**: Only needed for developing NVIDIA nvJPEG hardware decode on Windows.
+
+### Environment Setup (PowerShell)
 ```powershell
-$env:PATH = "$env:USERPROFILE\.cargo\bin;C:\ffmpeg\bin;$env:PATH"
+# Set paths to your FFmpeg and LLVM installations:
+$env:PATH = "$env:USERPROFILE\.cargo\bin;C:\ffmpeg\bin;C:\Program Files\LLVM\bin;$env:PATH"
 $env:FFMPEG_DIR = 'C:\ffmpeg'
+$env:PKG_CONFIG_PATH = 'C:\ffmpeg\lib\pkgconfig'
 $env:LIBCLANG_PATH = 'C:\Program Files\LLVM\bin'
 ```
 
-## Build
-
+### Compile & Test
 ```powershell
-cargo build              # debug build
-cargo build --release    # release build (optimized, thin LTO)
-cargo test               # run tests
-cargo run -- --test      # test pattern mode (no capture card needed)
+# Run unit tests (includes audio resampler, channel conversion, and ring buffer tests)
+cargo test
+
+# Compile release binary
+cargo build --release
+```
+The output binary will be located at `target\release\tacklecast.exe`.
+
+---
+
+## 2. Linux Build Instructions
+
+TackleCast natively supports modern Linux desktop environments with PipeWire, PulseAudio, ALSA, and V4L2 video capture.
+
+### Prerequisites & System Packages
+
+#### Debian / Ubuntu / Pop!_OS / Linux Mint
+```bash
+sudo apt update
+sudo apt install -y \
+  build-essential \
+  clang \
+  libclang-dev \
+  pkg-config \
+  libasound2-dev \
+  libv4l-dev \
+  libavcodec-dev \
+  libavformat-dev \
+  libavdevice-dev \
+  libavutil-dev \
+  libswresample-dev \
+  libswscale-dev
 ```
 
-The release executable is at `target\release\tacklecast.exe`.
+#### Arch Linux / Manjaro
+```bash
+sudo pacman -S --needed \
+  base-devel \
+  clang \
+  pkgconf \
+  alsa-lib \
+  v4l-utils \
+  ffmpeg
+```
 
-### Feature Flags
+#### Fedora / RHEL
+```bash
+sudo dnf install -y \
+  gcc \
+  clang \
+  clang-devel \
+  pkgconf-pkg-config \
+  alsa-lib-devel \
+  libv4l-devel \
+  ffmpeg-free-devel \
+  libswresample-free-devel \
+  libswscale-free-devel
+```
 
-| Flag | Default | Description |
+### Compile & Test
+```bash
+# Verify rust toolchain
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Run all test suites
+cargo test
+
+# Compile optimized release binary
+cargo build --release
+```
+The output binary will be located at `target/release/tacklecast`.
+
+---
+
+## 3. Cargo Feature Flags
+
+| Feature | Default | Description |
 |---|---|---|
-| `gpu-decode` | on | NVIDIA nvJPEG GPU decode + zero-copy pipeline |
+| `gpu-decode` | Enabled | Windows-only NVIDIA nvJPEG zero-copy GPU MJPEG decode via CUDA and DX12. Automatically disabled on non-Windows platforms. |
 
-To build without GPU decode support:
-
-```powershell
+To build with strictly minimal dependencies (software decode only):
+```bash
 cargo build --release --no-default-features
 ```
 
-## Package for Distribution
+---
 
-Use the packaging script:
+## 4. Testing Without Capture Hardware
 
-```powershell
-.\scripts\package_rust_release.ps1              # build + package
-.\scripts\package_rust_release.ps1 -Zip         # build + package + zip
+You can run TackleCast in synthetic test-pattern mode without plugging in any capture device:
+```bash
+# Alternate test patterns
+cargo run -- --test
+
+# Force NV12 format pattern
+cargo run -- --test-nv12
+
+# Force MJPEG / YUV 4:2:2 pattern
+cargo run -- --test-mjpeg
 ```
-
-Default output: `dist\TackleCast-Rust\`
-
-### Package Contents
-
-- `TackleCast.exe` - release binary
-- `assets\icon.ico` - window icon
-- `tacklecast_settings.json` - default settings (if present)
-- `logs\` - empty directory for runtime logs
-- FFmpeg runtime DLLs (avcodec, avformat, avdevice, avutil, swresample, swscale, avfilter)
-
-### GPU Decode Bundle
-
-For NVIDIA GPU decode support, also include alongside the exe:
-
-- `nvjpeg64_13.dll`
-- `cudart64_13.dll`
-
-These can be copied from your CUDA Toolkit installation (`C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.2\bin`). Users without these DLLs will automatically fall back to software decode.
-
-**Note:** End users need NVIDIA driver 570+ for CUDA 13 compatibility.
-
-## Runtime Notes
-
-- FFmpeg DLLs must be in the same directory as `TackleCast.exe`
-- Settings are loaded from `tacklecast_settings.json` next to the exe
-- Logs are written to `logs\` next to the exe
-- The app forces the wgpu DX12 backend on Windows (required for zero-copy CUDA interop)
